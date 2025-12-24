@@ -1,0 +1,146 @@
+# ADR-001 — Separación estricta de Scanning, Core y UI
+
+**Estado:** Accepted
+**Fecha:** *24/12/2025*
+**Decisores:** *Nehonar / Radar Dragon ball*
+**Alcance:** Todo el sistema
+
+---
+
+## Contexto
+
+El sistema necesita:
+
+* adquirir señales (WiFi, BLE, simuladas),
+* agregarlas y transformarlas en estado estable,
+* representarlas visualmente en una UI interactiva.
+
+En prototipos rápidos es habitual:
+
+* mezclar escaneo con lógica,
+* mezclar lógica con render,
+* o permitir que la UI “pida datos” directamente.
+
+Esto provoca:
+
+* acoplamiento fuerte,
+* bugs de sincronización,
+* imposibilidad de portar el sistema (por ejemplo a ESP32),
+* y agentes de IA que “optimizan” rompiendo el diseño.
+
+---
+
+## Decisión
+
+Se adopta una **separación estricta en contenedores** con responsabilidades no solapadas:
+
+* **Scanner Container**
+
+  * Solo adquiere señales.
+  * Emite `Observation`.
+  * No mantiene estado agregado.
+
+* **Core / Tracking Container**
+
+  * Única capa con lógica de dominio.
+  * Agrega observaciones en `Target`.
+  * Produce `Snapshot` inmutable.
+
+* **UI / Presentation Container**
+
+  * Solo renderiza.
+  * Solo consume `Snapshot`.
+  * No modifica estado ni aplica lógica.
+
+* **Runtime / Orchestration Container**
+
+  * Cablea y gestiona el ciclo de vida.
+  * No contiene lógica de dominio.
+
+Las dependencias son **unidireccionales** y obligatorias:
+
+```
+Scanner → Core → UI
+Runtime → (Scanner, Core, UI)
+```
+
+---
+
+## Alternativas consideradas
+
+### Alternativa A — UI accede directamente a scanners
+
+*Rechazada*
+Motivo:
+
+* UI dependiente de hardware
+* imposible testear
+* rompe portabilidad
+
+---
+
+### Alternativa B — Core llama a la UI
+
+*Rechazada*
+Motivo:
+
+* acoplamiento temporal
+* bloqueos
+* imposibilidad de snapshots coherentes
+
+---
+
+### Alternativa C — Un único “manager” central
+
+*Rechazada*
+Motivo:
+
+* “God object”
+* sin límites claros
+* imposible de mantener con IA
+
+---
+
+## Consecuencias
+
+### Positivas
+
+* Arquitectura portable (PC → ESP32)
+* UI estable, sin race conditions
+* Simulador intercambiable
+* IA no puede mezclar capas sin violar contratos
+
+### Negativas
+
+* Más archivos
+* Más disciplina
+* Ligera sobrecarga conceptual al inicio
+
+Estas consecuencias son **aceptadas explícitamente**.
+
+---
+
+## Relación con contratos
+
+Esta decisión:
+
+* **está gobernada por** `/docs/contracts/layer-contracts.md`
+* **no puede ser invalidada** por optimizaciones futuras
+* **bloquea** cualquier implementación que:
+
+  * permita dependencias inversas
+  * mezcle lógica con presentación
+
+---
+
+## Regla derivada (normativa)
+
+> Si una funcionalidad “solo se puede hacer” rompiendo esta separación,
+> entonces **la funcionalidad está mal planteada**.
+
+---
+
+## Cierre ADR-001
+
+Este ADR es **fundacional**.
+Todos los ADR posteriores **asumen su validez**.

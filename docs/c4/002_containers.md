@@ -108,10 +108,10 @@ En este nivel definimos los contenedores internos del sistema, sus responsabilid
 ## 2 Relaciones entre contenedores
 ```mermaid
 graph TD
-    Scanner[Scanner Container<br/>(WiFi / BLE / Sim)]
-    Core[Core / Tracking Container]
-    UI[UI / Presentation Container]
-    Runtime[Runtime / Orchestration Container]
+    Scanner["Scanner Container<br/">(WiFi / BLE / Sim)]
+    Core["Core / Tracking Container"]
+    UI["UI / Presentation Container"]
+    Runtime["Runtime / Orchestration Container"]
 
     Scanner -->|Observation events| Core
     Core -->|Snapshot (read-only)| UI

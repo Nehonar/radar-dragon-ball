@@ -114,7 +114,7 @@ graph TD
     Runtime["Runtime / Orchestration Container"]
 
     Scanner -->|Observation events| Core
-    Core -->|Snapshot (read-only)| UI
+    Core -->|Snapshot: read-only| UI
 
     Runtime -.->|wires / lifecycle| Scanner
     Runtime -.->|wires / lifecycle| Core

@@ -70,7 +70,7 @@ Runtime → (Scanner, Core, UI)
 
 ### Alternativa A — UI accede directamente a scanners
 
-*Rechazada*
+* Rechazada
 Motivo:
 
 * UI dependiente de hardware
@@ -81,7 +81,7 @@ Motivo:
 
 ### Alternativa B — Core llama a la UI
 
-*Rechazada*
+* Rechazada
 Motivo:
 
 * acoplamiento temporal
@@ -92,7 +92,7 @@ Motivo:
 
 ### Alternativa C — Un único “manager” central
 
-*Rechazada*
+* Rechazada
 Motivo:
 
 * “God object”

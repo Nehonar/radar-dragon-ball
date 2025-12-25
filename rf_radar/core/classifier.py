@@ -1,3 +1,8 @@
-"""Classifier placeholder; RSSI filtering to be added in later milestones."""
+"""Minimal placeholder classifier."""
 
-# Classification logic will be implemented later.
+from rf_radar.core.models import Target, TargetKind
+
+
+def classify(target: Target) -> TargetKind:
+    """Return a placeholder classification for the target."""
+    return TargetKind.UNKNOWN

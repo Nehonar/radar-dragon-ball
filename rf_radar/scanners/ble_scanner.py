@@ -54,13 +54,16 @@ class BleScanner:
         observations = []
         ts = time.time()
         for dev in devices:
-            if dev.rssi is None:
+            rssi = getattr(dev, "rssi", None)
+            if rssi is None:
+                rssi = dev.metadata.get("rssi") if hasattr(dev, "metadata") else None
+            if rssi is None:
                 continue
             observations.append(
                 Observation(
                     source=ObservationSource.BLE,
                     id=str(dev.address),
-                    rssi=int(dev.rssi),
+                    rssi=int(rssi),
                     ts=ts,
                     meta={"name": dev.name or "", "scanner": "ble"},
                 )

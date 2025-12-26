@@ -36,6 +36,8 @@ def test_scenarios_emit_valid_observations():
 
 
 def test_tracker_integration_with_sim_scanner():
+    original_interval = getattr(config, "TARGET_UPDATE_INTERVAL", 0.5)
+    config.TARGET_UPDATE_INTERVAL = 0.0
     observation_queue = create_observation_queue(config)
     tracker = Tracker(config)
     scanner = SimScanner(observation_queue, config, scenario="C", seed=7, tick_rate=30, start_ts=0.0)
@@ -65,3 +67,4 @@ def test_tracker_integration_with_sim_scanner():
     ids = {t.id for t in snap.targets}
     assert "sim-move" in ids
     assert snap.selected_id == "sim-move"
+    config.TARGET_UPDATE_INTERVAL = original_interval

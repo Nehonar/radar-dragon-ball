@@ -21,11 +21,24 @@ def test_angles_are_generally_distinct_for_different_ids():
     assert angle_a != angle_b
 
 
+def test_radius_constant_within_band():
+    r1 = mapping.radius_from_rssi(-85, config)
+    r2 = mapping.radius_from_rssi(-82, config)
+    assert r1 == r2
+
+
+def test_radius_changes_when_band_changes():
+    r1 = mapping.radius_from_rssi(-85, config)  # band 1
+    r2 = mapping.radius_from_rssi(-70, config)  # band 2
+    assert r1 != r2
+    assert r2 < r1
+
+
 def test_radius_from_rssi_extremes():
     high = mapping.radius_from_rssi(config.RSSI_MAX + 10, config)
     low = mapping.radius_from_rssi(config.RSSI_MIN - 10, config)
-    assert high <= 0.05
-    assert 0.95 <= low <= 1.0
+    assert high == config.RADII_NORMALIZED[-1]
+    assert low == config.RADII_NORMALIZED[0]
 
 
 def test_polar_to_cartesian_preserves_radius():

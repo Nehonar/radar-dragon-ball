@@ -13,14 +13,25 @@ def angle_from_id(id: str) -> float:
     return fraction * (2 * math.pi)
 
 
-def radius_from_rssi(rssi: int, config) -> float:
-    """Normalize RSSI into a radial distance in [0.0, 1.0]; higher RSSI yields smaller radius."""
+def radius_from_rssi_band(rssi: int, config) -> Tuple[float, int]:
+    """Map RSSI into a quantized radius and return its band index."""
     rssi_clamped = max(config.RSSI_MIN, min(config.RSSI_MAX, rssi))
-    span = config.RSSI_MAX - config.RSSI_MIN
-    if span == 0:
-        return 1.0
-    normalized = (config.RSSI_MAX - rssi_clamped) / span
-    return max(0.0, min(1.0, normalized))
+    bands = config.RSSI_BANDS
+    radii = config.RADII_NORMALIZED
+
+    for idx, ((low, high), radius) in enumerate(zip(bands, radii)):
+        if low <= rssi_clamped <= high:
+            return radius, idx
+
+    if rssi_clamped < bands[0][0]:
+        return radii[0], 0
+    return radii[-1], len(radii) - 1
+
+
+def radius_from_rssi(rssi: int, config) -> float:
+    """Map RSSI into a quantized radius based on configured bands."""
+    radius, _ = radius_from_rssi_band(rssi, config)
+    return radius
 
 
 def polar_to_cartesian(angle: float, radius: float) -> Tuple[float, float]:

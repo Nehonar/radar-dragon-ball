@@ -9,7 +9,7 @@ from rf_radar.app.runtime import Runtime
 from rf_radar.core import config
 from rf_radar.infrastructure import queues
 from rf_radar.infrastructure.logging import setup_logging
-from rf_radar.ui import hud, radar_view
+from rf_radar.ui import hud, radar_view, theme, input
 
 logger = logging.getLogger(__name__)
 
@@ -29,13 +29,13 @@ def run(width: int = 400, height: int = 400, fps: int = None) -> None:
     runtime = Runtime(config, observation_queue, snapshot_queue)
     runtime.start()
 
+    view_index = 0
+    profiles = theme.VIEW_PROFILES
     running = True
+    snap = None
     while running:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
-                running = False
+        running, view_index = input.handle_events(view_index, len(profiles))
+        view_profile = profiles[view_index]
 
         try:
             snap = snapshot_queue.get_nowait()
@@ -43,8 +43,8 @@ def run(width: int = 400, height: int = 400, fps: int = None) -> None:
         except Exception:
             pass
 
-        radar_view.render(screen)
-        hud.draw_hud(screen, font)
+        rendered_count = radar_view.render(screen, view_profile, snap if snap else None, font)
+        hud.draw_hud(screen, font, view_profile, snap if snap else None, rendered_count)
 
         pygame.display.flip()
         clock.tick(target_fps)

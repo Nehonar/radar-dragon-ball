@@ -19,10 +19,9 @@ def draw_background(surface: pygame.Surface) -> None:
     surface.fill(theme.BG_BASE)
 
 
-def draw_grid(surface: pygame.Surface) -> None:
+def draw_grid(surface: pygame.Surface, spacing: int) -> None:
     """Draw grid lines across the radar panel."""
     width, height = surface.get_size()
-    spacing = theme.GRID_SPACING
     thickness = theme.GRID_THICKNESS
 
     for x in range(0, width, spacing):
@@ -80,18 +79,39 @@ def set_snapshot(snap) -> None:
             _target_reset_walltime.pop(known_id, None)
 
 
-def _render_targets(surface: pygame.Surface, snap) -> None:
+def _filter_targets_for_view(snap, view_profile: dict):
+    rssi_min = view_profile.get("rssi_min_visible", -100)
+    filtered = []
+    for target in snap.targets:
+        try:
+            if target.rssi_filt < rssi_min and target.state == TargetState.ACTIVE:
+                continue
+        except Exception:
+            pass
+        filtered.append(target)
+    return filtered
+
+
+def _render_targets(surface: pygame.Surface, snap, view_profile: dict) -> int:
     width, height = surface.get_size()
     cx = width // 2
     cy = height // 2
-    max_radius = min(width, height) * 0.45
+    max_radius = min(width, height) * view_profile.get("radius_scale", 0.45)
     fade_seconds = getattr(config, "TARGET_UPDATE_INTERVAL", theme.TARGET_FADE_SECONDS)
+    rssi_min = view_profile.get("rssi_min_visible", -100)
+    rssi_max = view_profile.get("rssi_max_visible", -30)
 
-    for target in snap.targets:
+    filtered = _filter_targets_for_view(snap, view_profile)
+
+    for target in filtered:
         if target.state == TargetState.GONE:
             continue
         angle_rad = math.radians(target.angle_deg)
-        radius_px = target.radius_norm * max_radius
+        rssi = getattr(target, "rssi_filt", None)
+        if rssi is None:
+            continue
+        norm = (rssi_max - max(rssi_min, min(rssi_max, rssi))) / max(1e-6, (rssi_max - rssi_min))
+        radius_px = norm * max_radius
         x_norm, y_norm = mapping.polar_to_cartesian(angle_rad, radius_px)
         x = int(cx + x_norm)
         y = int(cy + y_norm)
@@ -129,12 +149,33 @@ def _render_targets(surface: pygame.Surface, snap) -> None:
             x,
             y,
         )
+    return len(filtered)
 
 
-def render(surface: pygame.Surface) -> None:
-    """Render the radar background, grid, center marker, and targets."""
+def _render_list(surface: pygame.Surface, font, snap) -> None:
+    surface.fill(theme.BG_BASE)
+    if not snap:
+        return
+    header = "ID        SRC  RSSI  BAND  ST"
+    surface.blit(font.render(header, True, theme.TEXT), (12, 12))
+    for idx, tgt in enumerate(snap.targets):
+        src = getattr(tgt, "source_mask", None)
+        src_label = " ".join(s.value for s in src) if src else "N/A"
+        rssi = getattr(tgt, "rssi_filt", getattr(tgt, "rssi_raw_last", 0))
+        band = getattr(tgt, "state", None)
+        state_label = band.name[0] if band else "?"
+        line = f"{tgt.id[:10]:10} {src_label:3} {int(rssi):4}  --   {state_label}"
+        surface.blit(font.render(line, True, theme.TEXT), (12, 12 + (idx + 1) * font.get_linesize()))
+
+
+def render(surface: pygame.Surface, view_profile: dict, snap, font) -> int:
+    """Render according to view profile; returns count of rendered targets."""
     draw_background(surface)
-    draw_grid(surface)
-    draw_crosshair(surface)
-    if _last_snapshot:
-        _render_targets(surface, _last_snapshot)
+    if view_profile.get("draw_radar", True):
+        draw_grid(surface, view_profile.get("grid_spacing", theme.GRID_SPACING))
+        draw_crosshair(surface)
+        if snap:
+            return _render_targets(surface, snap, view_profile)
+    else:
+        _render_list(surface, font, snap)
+    return snap.stats.get("total", 0) if snap else 0

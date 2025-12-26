@@ -9,6 +9,8 @@ from typing import Optional
 
 from rf_radar.core.tracker import Tracker
 from rf_radar.scanners.sim_scanner import SimScanner
+from rf_radar.scanners.wifi_scanner import WifiScanner
+from rf_radar.scanners.ble_scanner import BleScanner
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,8 @@ class Runtime:
         self.snapshot_queue = snapshot_queue
         self.tracker: Optional[Tracker] = None
         self.scanner: Optional[SimScanner] = None
+        self.wifi_scanner: Optional[WifiScanner] = None
+        self.ble_scanner: Optional[BleScanner] = None
         self.stop_event = threading.Event()
         self.core_thread: Optional[threading.Thread] = None
         self.core_interval = 1.0 / float(self.config.CORE_TICK_RATE)
@@ -32,8 +36,15 @@ class Runtime:
             return
 
         self.tracker = Tracker(self.config)
-        self.scanner = SimScanner(self.observation_queue, self.config, scenario="C", seed=1)
-        self.scanner.start()
+        if getattr(self.config, "ENABLE_SIMULATOR", True):
+            self.scanner = SimScanner(self.observation_queue, self.config, scenario="C", seed=1)
+            self.scanner.start()
+        if getattr(self.config, "ENABLE_WIFI_SCANNER", False):
+            self.wifi_scanner = WifiScanner(self.observation_queue, self.config)
+            self.wifi_scanner.start()
+        if getattr(self.config, "ENABLE_BLE_SCANNER", False):
+            self.ble_scanner = BleScanner(self.observation_queue, self.config)
+            self.ble_scanner.start()
 
         self.core_thread = threading.Thread(target=self._core_loop, name="RuntimeCore", daemon=True)
         self.core_thread.start()
@@ -43,6 +54,10 @@ class Runtime:
         self.stop_event.set()
         if self.scanner:
             self.scanner.stop()
+        if self.wifi_scanner:
+            self.wifi_scanner.stop()
+        if self.ble_scanner:
+            self.ble_scanner.stop()
         if self.core_thread:
             self.core_thread.join(timeout=2.0)
         self._drain_queues()
